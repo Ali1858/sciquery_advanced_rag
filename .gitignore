@@ -1,0 +1,7 @@
+*.pyc
+*.pdf
+*.json
+*.npy
+data/*
+.DS_Store
+*pycache*

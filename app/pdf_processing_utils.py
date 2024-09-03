@@ -92,13 +92,3 @@ def get_page_text(pdf_path: str, fn:str ) -> Tuple[List[str], Optional[Dict[str,
                 blocks_[len(blocks_)-1] += f'\n{txt}' # new line because most likely a new passage.
         pages.append({"text":"\n".join(blocks_),"metadata":metadata})
     return pages
-
-
-def display_chunk(chunks: List[str]) -> None:
-    "Display chunks"
-    for i, chunk in enumerate(chunks):
-        chunk = chunk["passage"]
-        count = len(chunk.split())
-        print(f"Chunk {i + 1} (Words: {count}):")
-        print(chunk)
-        print("-" * 50)

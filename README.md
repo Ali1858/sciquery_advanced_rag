@@ -1,5 +1,13 @@
 # SciQuery (WIP): Advanced RAG System using LlamaIndex
 
+
+TODO: 
+- [ ] Test Docker script.
+- [ ] Improve PDF parsing.
+- [ ] Add Support for `Recursive Retrieval`
+- [ ] Add Support for `Automated Metadata Extraction`
+- [ ] Add Support for `Enhanced Query Generation`
+
 This repository demonstrates the use of the llama index library for Advance Retrieval-Augmented Generation (RAG), specifically designed for scientific literature Q&A. It showcases a multiple RAG system, building using several chunking and retrieval methods. In addition to that it also uses Qdrant vector database to persist embeddings. This approach help in understanding how different RAG technique works. The system also provides an API for updating, deleting, and quering documents in the index.
 
 ## Steps to Implement SciQuery:
@@ -207,10 +215,6 @@ To get started with SciQuery, follow these steps to set up your Python environme
    ```
 
 Make sure to set any necessary environment variables as specified in the `config.py` file before running the application.
-
-TODO: 
-- [ ] Test Docker script.
-- [ ] Improve PDF parsing.
 
 Replace `http://localhost:5000` with the actual base URL of your SciQuery API server. For the `POST` and `DELETE` requests, make sure to use the appropriate file paths and UUIDs as needed.
 

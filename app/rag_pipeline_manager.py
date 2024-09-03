@@ -3,6 +3,7 @@ import os
 from llama_index.llms.ollama import Ollama
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core.settings import Settings
+from llama_index.core import StorageContext
 from llama_index.core.node_parser import get_leaf_nodes, get_root_nodes
 
 from app.vector_store_manager import VectorStoreManager
@@ -96,6 +97,9 @@ class RAGPipelineManager:
         self.ingestion_manager = IngestionManager(Settings)
         self.query_pipeline_builder = QueryPipelineBuilder(Settings, node_parsing_method=self.node_parsing_method)
 
+        self.doc_store_name = self.doc_store_name_template.format(name=self.node_parsing_method, suffix=self.name_suffix)
+        self.collection_name = self.vectore_db_col_name_template.format(name=self.node_parsing_method, suffix=self.name_suffix)
+
         try:
             doc_store_name = self.doc_store_name_template.format(name=self.node_parsing_method, suffix=self.name_suffix)
             self.ingestion_manager.get_doc_from_store(os.path.join(self.DOC_STORE_DIRECTORY,doc_store_name))
@@ -123,8 +127,7 @@ class RAGPipelineManager:
         Returns:
             List[Document]: A list of documents retrieved from the document store.
         """
-        self.doc_store_name = self.doc_store_name_template.format(name=self.node_parsing_method, suffix=self.name_suffix)
-        if run_pipeline:
+        if run_pipeline and len(documents) > 0:
             if self.node_parsing_method == "semantic":
                 nodes = self.ingestion_manager.ingest(documents, node_parser_type="semantic")
 
@@ -161,7 +164,6 @@ class RAGPipelineManager:
         Returns:
             VectorStoreIndex: The loaded vector store index.
         """
-        self.collection_name = self.vectore_db_col_name_template.format(name=self.node_parsing_method, suffix=self.name_suffix)
 
         if save_vector_store and nodes is not None:
             if self.node_parsing_method == "semantic":
@@ -186,18 +188,62 @@ class RAGPipelineManager:
     def update_for_one_doc(self, pdf_file, **kwargs):
         # Step 1: Prepare documents
         new_docs = self.document_processor.prepare_single_document( pdf_file, method=self.document_parsing_method)
-        # Step 2: Run ingestion pipeline
-        self.doc_store = self.run_ingestion_pipeline(run_pipeline=True, documents=new_docs, add_to_existing=True)
+        self.reload_pipeline(run_and_save=True, add_to_existing = True, docs=new_docs, **kwargs)
+
+    
+    def load_existing_doc_store(self):
+        # Step 1: Load the existing document store
+        persist_dir = os.path.join(self.DOC_STORE_DIRECTORY,self.doc_store_name)
+        return self.ingestion_manager.get_doc_from_store(persist_dir)
+
+
+    def delete_doc_from_index(self,document_name):
+        persist_dir = os.path.join(self.DOC_STORE_DIRECTORY,self.doc_store_name)
+        doc_store = self.load_existing_doc_store()
+        # Step 2: Find nodes related to the specified document name
+        nodes_to_delete = [node_id for node_id, node in doc_store.docs.items() if node.metadata.get("file_name") == document_name]
+
+        if not nodes_to_delete:
+            print(f"No nodes found for document name: {document_name}")
+            return False
+        else:
+            print(f'number of to be deleted: {len(nodes_to_delete)}')
+            # Step 3: Remove nodes from the document store
+            for node_id in nodes_to_delete:
+                doc_store.delete_document(node_id)
+
+            # Step 4: Persist changes to the document store
+            storage_context = StorageContext.from_defaults(docstore=doc_store)
+            storage_context.persist(persist_dir)
+
+            self.vector_store_manager.load_vector_collection(self.collection_name, embed_model=Settings.embed_model)
+
+            # Step 5: Prepare vector store
+            vector_store = self.vector_store_manager.prepare_vector_store(self.collection_name)
+            # Step 6: Remove vectors from the vector store
+            vector_store.delete_nodes(nodes_to_delete)
+            self.reload_pipeline()
+            return True
+
+
+    def reload_pipeline(self,run_and_save=False, add_to_existing = False, docs=[], **kwargs):
+
+        # Run ingestion pipeline
+        self.doc_store = self.run_ingestion_pipeline(run_pipeline=run_and_save, documents=docs, add_to_existing=add_to_existing)
         nodes = list(self.doc_store.docs.values())
-        # Step 3: Save and load vector store
-        self.vector_index = self.save_and_load_vector_store(save_vector_store=True, nodes=nodes, add_to_existing=True)
-        # Step 4: Build query pipeline
+        print(f'total number of nodes found in doc store: {len(nodes)}')
+
+        # Save and load vector store
+        self.vector_index = self.save_and_load_vector_store(save_vector_store=run_and_save, nodes=nodes, add_to_existing=add_to_existing)
+
+        # Build query pipeline
         doc_store_path = os.path.join(self.DOC_STORE_DIRECTORY,self.doc_store_name)
         self.query_pipeline = self.query_pipeline_builder.build_query_pipeline(self.retrieval_type,
                                                                           base_index=self.vector_index,
                                                                           doc_store = self.doc_store,
                                                                           storage_context = self.ingestion_manager.get_storage_contex(doc_store_path),
                                                                           **kwargs)
+    
 
     def create_query_pipeline(self, **kwargs):
         """
@@ -232,26 +278,18 @@ class RAGPipelineManager:
                                                                           **kwargs)
 
 
-    def run_query_pipeline(self,query, run_with_intermediates=True):
+    def run_query_pipeline(self,query):
+        output, steps = self.query_pipeline.run_with_intermediates(topic=query)
+        answer = output.message.content
 
-        if run_with_intermediates:
-            output, steps = self.query_pipeline.run_with_intermediates(topic=query)
-        else:
-            output = self.query_pipeline.run(topic=query)
-            steps = None
-        return output, steps
-
-    
-    # def delete_index(self, ref_document_id):
-    #     """
-    #     Delete document Index.
-
-    #     Args:
-    #         ref_document_id (str): Reference document id of the document.
-    #     """
-    #     # Delete the document index based on ref_doc_id
-    #     self.index.delete_ref_doc(ref_doc_id=ref_document_id, delete_from_docstore=True)
-    #     # Store the updated index
-    #     self.persist_index()
-    #     # Reload the index
-    #     self.reload_index()
+        relevant_nodes = []
+        for node in steps["retriever"].outputs["output"]:
+            metadata = node.metadata
+            relevant_nodes.append(
+                {"text" : node.text,
+                 "node_id" : node.id_,
+                 "page_num" : metadata["page_label"],
+                 "file_name" : metadata["file_name"]
+                 }
+                 )
+        return steps, {"relevant_nodes":relevant_nodes, "query":query, "answer": answer}

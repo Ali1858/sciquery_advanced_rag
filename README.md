@@ -1,4 +1,4 @@
-# SciQuery (WIP): Advanced RAG System using LlamaIndex
+# SciQuery : Advanced RAG System using LlamaIndex
 
 
 TODO: 
@@ -22,7 +22,7 @@ We use regex to identify the starting point of the `Reference` section, which is
 ### Step 2: Chunking:
 The system provides several chunking methods to process and divide text into manageable segments or "nodes". Suitable method can be choosen after emperical testing: to different use cases and requirements:
 
-  1. Semantic Chunking:
+  1. Semantic Chunking (semantic):
     This method splits text based on semantic shifts. It uses an embedding model to detect changes in meaning, creating a new chunk whenever a significant semantic difference is identified. This is useful for tasks where preserving the coherence of meaning is important.
 
   2. Simple Chunking:
@@ -32,7 +32,7 @@ The system provides several chunking methods to process and divide text into man
     This method uses a sliding window to generate chunks, moving over the text with a specified window size. Each window captures a group of sentences, allowing for overlapping segments that provide context continuity. 
   
   4. Hierarchical Chunking (hierarchical):
-    This method creates a hierarchical structure of chunks, using different sizes for different levels. It enables a layered representation of text, which is beneficial for complex tasks requiring multi-level analysis or summary. It uses predefined chunk sizes for different hierarchy levels (e.g., 512, 256, 128).
+    This method creates a hierarchical structure of chunks, using different sizes for different levels. It enables a layered representation of text, which is beneficial for complex tasks requiring multi-level analysis or summary. It uses predefined chunk sizes for different hierarchy levels (e.g., 2048, 512, 128).
 
 ### Step 3: Embedding:
 
@@ -40,28 +40,38 @@ For effective semantic search, it is crucial to obtain vector embeddings of text
 
 These embeddings, along with the original text passages and their metadata, are saved on Qdrant vector store.
 
-### Step 4: Retrieval Techniques (WIP):
+### Step 4: Retrieval Techniques:
 we provide variety of Retrieval-Augmented Generation (RAG) techniques to enhance the effectiveness of text retrieval and generation. These techniques are designed to improve the quality and relevance of generated responses by utilizing structured retrieval processes. Below is a brief explanation of each supported RAG technique:
 
-  1. RAG with Hierarchical Indexing:
-    This technique utilizes a hierarchical structure to organize and index documents. By segmenting documents into different levels of granularity, it enables efficient and precise retrieval of relevant information based on the query context. This hierarchical approach enhances the ability to handle large and complex documents.
+  1. RAG with Small-to-Big (Hierarchical Indexing): 
+    This technique utilizes a hierarchical structure to organize and index documents. By segmenting documents into different levels of granularity, it enables efficient and precise retrieval of relevant information based on the query context. This hierarchical approach enhances the ability to handle large and complex documents by focusing on the most relevant sections first and then expanding to more detailed levels as needed.
     
-  2. Contextual Compression:
+  2. RAG with Smal-to-Big Retrieval (Sentence Window Indexing): 
+    This method involves indexing documents at a very fine-grained level, such as individual sentences or small segments of text. By using a sliding window approach, it allows the system to quickly retrieve the most relevant sentences that match the query and then expanding to its window of contex. This technique is particularly useful for extracting precise pieces of information from documents, improving the specificity and accuracy of the responses generated.
+  
+  3. Fusion Retrieval: 
+    Fusion Retrieval combines multiple retrieval strategies to leverage the strengths of each. It aggregates results from various indexing and retrieval techniques, merging the outcomes to form a comprehensive response. This approach ensures that diverse sources of information are considered, leading to more robust and well-rounded generated content. We use fusion of semantic retrieval and BM25 retrieval in this task.
+
+  4. Simple RAG:
+    Simple RAG involves a straightforward approach to retrieval-augmented generation, where a single retrieval method is used to find relevant documents or text segments, which are then fed into the generation process. While less complex than other techniques, Simple RAG can still effectively enhance the relevance of responses, especially when dealing with well-defined and narrower queries.
+
+  [TODO] Implementation pending.
+  5. Contextual Compression [TODO]:
     Contextual compression reduces the amount of irrelevant information presented to the language model by compressing the retrieved context. It intelligently selects and condenses only the most relevant portions of text, allowing the model to focus on key information, thereby improving both retrieval accuracy and response generation quality.
 
-  3. Adaptive Retrieval:
+  6. Adaptive Retrieval [TODO]:
     Adaptive retrieval dynamically adjusts the retrieval strategy based on the nature of the query and the context. This method enables the system to use different retrieval methods or parameters in real-time, ensuring that the most relevant information is obtained for varying types of questions or requests.
 
-  4. Sophisticated Controllable Agent:
+  7. Sophisticated Controllable Agent [TODO]:
     This technique involves using advanced control mechanisms to guide the behavior of the retrieval and generation process. The controllable agent can adjust various aspects of retrieval, such as selecting specific indices or tuning relevance scores, to tailor the output to meet specific user requirements or task objectives.
   
-  5. Recursive Retrieval:
+  8. Recursive Retrieval [TODO]:
     Recursive retrieval repeatedly refines the search process by using initial retrieval results to form new queries. This iterative approach allows the system to drill down deeper into the available data, progressively refining the search results to find the most relevant and specific information.
   
-  6. Context Enrichment using QA and Summary:
+  9. Context Enrichment using QA and Summary [TODO]:
     Description
   
-  7. DocumentSummaryIndex Retrieval:
+  10. DocumentSummaryIndex Retrieval [TODO]:
     DocumentSummaryIndex retrieval focuses on using pre-computed summaries of documents to improve retrieval efficiency. By indexing summaries rather than full documents, this method speeds up the retrieval process and ensures that the most relevant and concise information is used to inform the generation process.
 
 
@@ -72,49 +82,49 @@ The SciQuery system exposes several REST API endpoints to manage and query the d
 ### 1. **Manage Index**
 
 This resource handles operations related to managing the document index, including retrieving, adding, and deleting documents.
-
 - **GET `/api/documents`**
 
-  Fetches a dictionary mapping UUIDs to filenames of all PDF documents currently in the index. Later, these UUID can be use to delete a document from INDEX.
+  Fetches a list of document names exits in Index. These file name can be use to delete a document from INDEX.
 
   **Example `curl` Command:**
   ```bash
-  curl -X GET "http://localhost:5000/api/documents"
+  curl -X GET "http://127.0.0.1:5000/api/documents"
   ```
 
   **Sample Response**
   ```json
   {
-  "00da0765-ab15-4553-9ea1-3cfab674b3b0": "levy2014_neural_word_embeddings_implicit_matrix_factorization.pdf",
-  "01c79fe2-7f76-487f-97c9-32b30ad89b75": "bojaniwski2017_enriching_we_with_subword_info_fasttext.pdf",
-  "0307bfb7-e32c-49bd-8df0-eb197cf92660": "wudredze2019_betobentzbecas.pdf",
-  "088a5d31-0228-4647-aa5f-bc9456c80cf4": "conneau2017_word_translation_without_parallel_data_muse_csls.pdf",
-  "09a653e3-212e-4229-8685-930f2e8b013c": "lample2018_words_translation_withou_pralell.pdf",
+  "file_names": [
+    "conneau2017_word_translation_without_parallel_data_muse_csls.pdf",
+    "martins2016_sparsemax.pdf",
+    "lample2019-cross-lingual-language-model-pretraining-Paper.pdf",
+    ]
   }
   ```
 
-- **DELETE `/api/documents/<string:uid>`**
+- **DELETE `/api/documents/<string:file_name>`**
 
-  Deletes a document from the index by its UUID. Replace `<string:uid>` with the actual UUID of the document you want to delete.
+  Deletes a document from the index by its file_name. Replace `<string:file_name>` with the actual file name of the document you want to delete.
 
   **Example `curl` Command:**
   ```bash
-  curl -X DELETE "http://localhost:5000/api/documents/00da0765-ab15-4553-9ea1-3cfab674b3b0"
+  curl -X DELETE "http://127.0.0.1:5000/api/documents/martins2016_sparsemax.pdf"
   ```
 
   **Sample Response**
   ```json
   {
-    "message": "Document with UID 01c79fe2-7f76-487f-97c9-32b30ad89b75 and filename bojaniwski2017_enriching_we_with_subword_info_fasttext.pdf deleted successfully from Index"
+    "message": "Document with file name: martins2016_sparsemax.pdf is successfully deleted from the index"
   }
+
   ```
-  **You can see File with UUID "01c79fe2-7f76-487f-97c9-32b30ad89b75" is deleted from Index**
+  **You can see File with UUID "martins2016_sparsemax.pdf" is deleted from Index**
   ```json
   {
-  "00da0765-ab15-4553-9ea1-3cfab674b3b0": "levy2014_neural_word_embeddings_implicit_matrix_factorization.pdf",
-  "0307bfb7-e32c-49bd-8df0-eb197cf92660": "wudredze2019_betobentzbecas.pdf",
-  "088a5d31-0228-4647-aa5f-bc9456c80cf4": "conneau2017_word_translation_without_parallel_data_muse_csls.pdf",
-  "09a653e3-212e-4229-8685-930f2e8b013c": "lample2018_words_translation_withou_pralell.pdf",
+  "file_names": [
+    "conneau2017_word_translation_without_parallel_data_muse_csls.pdf",
+    "lample2019-cross-lingual-language-model-pretraining-Paper.pdf"
+    ]
   }
   ```
 
@@ -124,27 +134,26 @@ This resource handles operations related to managing the document index, includi
 
   **Example `curl` Command:**
   ```bash
-  curl -X POST "http://localhost:5000/api/documents" \
-  -F "file=@/path/to/bojaniwski2017_enriching_we_with_subword_info_fasttext.pdf.pdf"
+  curl -X POST "http://127.0.0.1:5000/api/documents" \
+  -F "file=@/path/to/martins2016_sparsemax.pdf"
   ```
 
   **Sample Response**
   ```json
   {
-    "filename": "bojaniwski2017_enriching_we_with_subword_info_fasttext.pdf",
-    "uid": "bd49bc59-cea9-4eaa-84c2-53b43a5dc93e"
+    "message": "Document with file name: martins2016_sparsemax.pdf is successfully added to the index"
   }
   ```
 
-  **You can see "bojaniwski2017_enriching_we_with_subword_info_fasttext.pdf" is added back to the Index but with different UUID**
+  **You can see "martins2016_sparsemax.pdf" is added back to the Index**
   ```json
   {
-  "00da0765-ab15-4553-9ea1-3cfab674b3b0": "levy2014_neural_word_embeddings_implicit_matrix_factorization.pdf",
-  "0307bfb7-e32c-49bd-8df0-eb197cf92660": "wudredze2019_betobentzbecas.pdf",
-  "088a5d31-0228-4647-aa5f-bc9456c80cf4": "conneau2017_word_translation_without_parallel_data_muse_csls.pdf",
-  "09a653e3-212e-4229-8685-930f2e8b013c": "lample2018_words_translation_withou_pralell.pdf",
-  "bd49bc59-cea9-4eaa-84c2-53b43a5dc93e": "bojaniwski2017_enriching_we_with_subword_info_fasttext.pdf",
-  }
+  "file_names": [
+    "conneau2017_word_translation_without_parallel_data_muse_csls.pdf",
+    "martins2016_sparsemax.pdf",
+    "lample2019-cross-lingual-language-model-pretraining-Paper.pdf"
+    ]
+  },
   ```
 
 
@@ -158,7 +167,7 @@ This resource processes queries to retrieve relevant information from the indexe
 
   **Example `curl` Command:**
   ```bash
-  curl -X POST "http://localhost:5000/api/query" \
+  curl -X POST "http://127.0.0.1:5000/api/query" \
   -H "Content-Type: application/json" \
   -d '{"query": "Explain what is ULMFIT?"}'
   ```
@@ -166,14 +175,40 @@ This resource processes queries to retrieve relevant information from the indexe
   **Sample Response with [TRUNCATED] passage**
   ```json
   {
-    "query": "Explain what is ULMFIT?",
-    "answer": "\nULMFiT is a transfer learning method for NLP (Natural Language Processing) that can be applied to any NLP task. It is a type of language model fine-tuning that uses a universal language model (ULM) as a starting point for adapting to specific NLP tasks. ULMFiT enables robust learning across a diverse range of tasks and prevents catastrophic forgetting, which means it can retain knowledge from previous tasks while learning new ones. It is an effective and extremely sample-efficient transfer learning method that can significantly outperform existing transfer learning techniques and the state-of-the-art on representative text classification tasks.",
-    "metadata": [
+    "relevant_nodes": [
         {
-            "passage": "## Discussion and future directions\nWhile we have shown that ULMFiT can achieve state-of-the-art performance on widely used text classification tasks, we believe that language model fine-tuning will be particularly useful in the following settings compared to existing transfer learning approaches (Conneau et al., 2017; McCann et al., 2017; Peters et al., 2018): a) NLP for non-English languages, [TRUNCATED] .....",
-            "pdf_path": "data/documents/ruder2019_ulmfit.pdf",
+            "text": "We ne-tune the classier for 50epochs and train all methods but ULMFiT with early stopping. Low-shot learning One of the main benets of transfer learning is being able to train a .... However, even for large datasets, pretraining improves performance.",
+            "node_id": "d0d11687-c32f-4e26-a636-9f628ef2880a",
+            "page_num": "7",
+            "file_name": "ruder2019_ulmfit.pdf"
+        },
+        {
+            "text": "Figure 4: Validation error rate curves for netuning the classier with ULMFiT and Full on IMDb, TREC-6, and AG (top to bottom). The error then increases as the model starts to overt ... will catalyze new developments in transfer learning for NLP. Acknowledgments We thank the anonymous reviewers for their valuable feedback. ",
+            "node_id": "5636843b-954f-497e-af75-e8fecc45ba02",
+            "page_num": "9",
+            "file_name": "ruder2019_ulmfit.pdf"
+        },
+        {
+            "text": "13/02/2018ulmt_pretraining.html 1/1dollarThegoldorEmbeddinglayerLayer1Layer2Layer3Softmaxlayer gold(a) LM pre-training 13/02/2018ulmt_lm_ne-tuning.html ... ne-tuned on target task data using discriminative ne-tuning ( Discr ) and slanted triangular learning rates (STLR) to learn task-specic features. ",
+            "node_id": "436fc1e3-5810-4520-b269-2f10d998eab5",
+            "page_num": "3",
+            "file_name": "ruder2019_ulmfit.pdf"
+        },
+        {
+            "text": "329fer learning approaches on six widely studied text classication tasks. On IMDb, with 100labeled examples, ULMFiT matches the performance of training from scratch with 10andgiven ... of all CNN units above that pixel. In analogy, a hypercolumn for a word or sentence in NLP is the concatenation of embeddings at different layers in a pretrained model.et al. (2017), and McCann et al. ",
+            "node_id": "98daa1fc-67b0-4c4a-9d48-e2b7c23bdb74",
+            "page_num": "2",
+            "file_name": "ruder2019_ulmfit.pdf"
+        },
+        {
+            "text": "(2018) require engineered custom architectures, while we show state-of-the-art performance with the same basic architecture across a range of tasks. In CV ,... entailment (Conneau et al., 2017), it provides data in near-unlimited quantities for most domains and languages. Additionally, a pretrained LM can be easily adapted to the idiosyncrasies of a target",
+            "node_id": "d075beb8-0825-4e7e-a872-a1a30851d7e2",
+            "page_num": "2",
+            "file_name": "ruder2019_ulmfit.pdf"
         }
-    ]
+    ],
+    "query": "Explain what is ULMFIT?",
+    "answer": "ULMFiT (Universal Language Model Fine-tuning) is a transfer learning method for Natural Language Processing (NLP) tasks. It consists of three stages: \n\n1. Pretraining: A language model is trained on a general-domain corpus to capture general features of the language.\n2. LM pre-training: The full language model is ne-tuned on target task data using discriminative tuning and slanted triangular learning rates to learn task-specific features.\n3. Classier ne-tuning: The classier layer is fine-tuned on the target task data.\n\nULMFiT allows for extremely sample-efficient transfer learning and achieves state-of-the-art results on six representative text classification tasks, including IMDb, TREC-6, and AG News."
   }
   ```
 

@@ -101,4 +101,6 @@ class DocumentProcessor:
                 print(f'Text extraction completed from PDF document at path {pdf_file}')
         else:
             raise ValueError(f"Invalid Method: {method} not supported. Pick 'simple' or 'manual_parsing'")
+    
+        return documents
         print(f'Found {len(documents)} total number of pages from the document {pdf_file}')

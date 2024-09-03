@@ -1,39 +1,37 @@
-# from flask import Flask
-# from flask_restful import Api
+from flask import Flask
+from flask_restful import Api
 
-# from app.utils import (should_create_index_and_bib,
-#                        prepare_index_and_bib,
-#                        load_index_and_bib,
-#                        load_embedding_model,
-#                        load_generation_pipeline,
-#                        load_reranker_model)
+from app.rag_pipeline_manager import RAGPipelineManager
+from config import RAG_DOCUMENT_PARSING_METHOD, RAG_NODE_PARSING_METHOD, RAG_RETRIEVAL_TYPE
 
 
-# def setup_app(app: Flask) -> tuple:
-#     embedding_model = load_embedding_model()
-#     answer_generator = load_generation_pipeline()
-#     reranker_model = load_reranker_model()
-
-#     if should_create_index_and_bib():
-#         print('Index and bibliography not found. Creating ....')
-#         indexed_chunks, document_embeddings, bibliography_dict = prepare_index_and_bib(embedding_model)
-#     else:
-#         print('Index and bibliography found. Loading ....')
-#         indexed_chunks, document_embeddings, bibliography_dict = load_index_and_bib()
-
-#     app.config['EMBEDDINGS'] = document_embeddings
-#     app.config["INDEX"] = indexed_chunks
-#     app.config['BIBLIOGRAPHY'] = bibliography_dict
-#     app.config['EMBEDDING_MODEL'] = embedding_model
-#     app.config['GENERATION_MODEL'] = answer_generator
-#     app.config['RERANKER_MODEL'] = reranker_model
+def validate_rag_params():
+    message = f"Retrieval type {RAG_RETRIEVAL_TYPE} not supported with the node parsing method {RAG_NODE_PARSING_METHOD}, choose different parser"
+    if RAG_RETRIEVAL_TYPE == "small_to_big": # "simple", "fusion_retrieval", "small_to_big"
+        assert RAG_NODE_PARSING_METHOD in ("sentence_window", "hierarchical"), message # "semantic", "sentence_window",  "hierarchical"
+    elif RAG_RETRIEVAL_TYPE == "fusion_retrieval" or RAG_RETRIEVAL_TYPE == "simple": # "simple", "fusion_retrieval", "small_to_big"
+        assert RAG_NODE_PARSING_METHOD == "semantic", message # "semantic", "sentence_window",  "hierarchical"
+    else:
+        raise ValueError(f"Retrieval type {RAG_RETRIEVAL_TYPE} not supported")
 
 
-# def create_app():
-#     app = Flask(__name__)
-#     api = Api(app)
-#     setup_app(app)
+def setup_rag_pipeline(app):
+    # Initialize RAGPipelineManager
+    validate_rag_params()
+    rag_manager = RAGPipelineManager(document_parsing_method=RAG_DOCUMENT_PARSING_METHOD,
+                                              node_parsing_method=RAG_NODE_PARSING_METHOD,
+                                              retrieval_type = RAG_RETRIEVAL_TYPE)
+    
+    # Create the RAG pipeline
+    rag_manager.create_query_pipeline()
+    app.config['RAG_MANAGER'] = rag_manager
 
-#     from app.routes import initialize_routes
-#     initialize_routes(api)
-#     return app
+
+def create_app():
+    app = Flask(__name__)
+    api = Api(app)
+    setup_rag_pipeline(app)
+
+    from app.routes import initialize_routes
+    initialize_routes(api)
+    return app

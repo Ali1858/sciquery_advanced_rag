@@ -33,7 +33,6 @@ class VectorStoreManager:
             vector_store_index.insert_nodes(nodes)
             storage_context.persist()
 
-            
 
     def load_vector_collection(self, store_collection_name: str, embed_model):
         """Loads a vector collection with the specified collection name and embedding model."""

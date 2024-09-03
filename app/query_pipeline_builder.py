@@ -15,12 +15,13 @@ from app.vector_store_manager import VectorStoreManager
 class QueryPipelineBuilder:
     """Builds different types of query pipelines."""
 
-    def __init__(self, Settings, num_queries=3, verbose = False) -> None:
+    def __init__(self, Settings, node_parsing_method=None, num_queries=3, verbose = False) -> None:
         
         self.num_queries = num_queries
         self.Settings = Settings
         self.llm = Settings.llm
         self._verbose = verbose
+        self.node_parsing_method = node_parsing_method
         self.QUERY_GEN_PROMPT = (
             "You are a helpful assistant that generates multiple search queries based on a "
             "single input query. Generate {num_queries} search queries, one on each line, "
@@ -56,8 +57,16 @@ class QueryPipelineBuilder:
 
     def get_simple_query_pipeline(self, retriever, retrieval_prompt_tmp, rag_prompt_template, verbose: bool = True):
         """Creates and returns a simple query pipeline."""
+        node_parsing_method = self.node_parsing_method
+        if node_parsing_method == "sentence_window":
+            print('Adding function to fetch window for sentence window small-to-big retrieval')
+
         def concatenate_nodes(retrieved_nodes):
-            return "\n\n".join([node.node.get_content() for node in retrieved_nodes])
+            if node_parsing_method == "sentence_window":
+                return "\n\n".join([node.node.metadata["window"] for node in retrieved_nodes])
+            else:
+                return "\n\n".join([node.node.get_content() for node in retrieved_nodes])
+
         
         concat_component = FunctionComponent(concatenate_nodes)
         query_pipeline = QueryPipeline(verbose=verbose)
@@ -118,7 +127,7 @@ class QueryPipelineBuilder:
             storage_context = kwargs.get("storage_context")
             if storage_context is None:
                 raise ValueError("storage_context is a required parameter for hierarchical retrieval")
-
+            
             base_retriever = base_index.as_retriever(similarity_top_k=similarity_top_k)
             retriever = AutoMergingRetriever(base_retriever, storage_context, verbose=verbose)
 

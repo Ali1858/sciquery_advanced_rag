@@ -46,11 +46,10 @@ class DocumentProcessor:
         return modified_text, found_references
 
 
-    def prepare_documents(self, pdf_paths: str, parse_doc_again=True, method: str = "simple") -> List[Document]:
-
+    def prepare_documents(self, pdf_dir: str, parse_doc_again=True, method: str = "simple") -> List[Document]:
         """Prepares documents from PDF files located at the specified path."""
-        print(pdf_paths)
-        pattern = os.path.join(pdf_paths, "*.pdf")
+        print(pdf_dir)
+        pattern = os.path.join(pdf_dir, "*.pdf")
         pdf_files = glob(pattern)
         
         if self.debug:
@@ -58,21 +57,48 @@ class DocumentProcessor:
             print(pdf_files)
         
         documents = []
+
+        if parse_doc_again:
+            if method == "simple":
+                documents = SimpleDirectoryReader(input_files=pdf_files).load_data()
+                for doc in documents:
+                    doc.text = self.basic_clean(doc.text)
+                    # doc.text, found_references = self.extract_reference_section_text(doc.text)
+                    doc.text = self.cleaning_func(doc.text)
+            elif method == "manual_parsing":
+                for pdf in pdf_files:
+                    fn = os.path.basename(pdf).split('.')[0]
+                    documents.extend([Document(text=self.cleaning_func(page["text"]), metadata=page["metadata"]) 
+                                    for page in get_page_text(pdf, fn)])
+                    if self.debug:
+                        print(f'Text extraction completed from PDF document at path {pdf}')
+            else:
+                raise ValueError(f"Invalid Method: {method} not supported. Pick 'simple' or 'manual_parsing'")
+
+            print(f'Found {len(documents)} total number of pages from the {len(pdf_files)} pdf files')
+        else:
+            print(f'Not parsing pdf document. Its already in doc store')
+
+        return documents
+    
+
+    def prepare_single_document(self, pdf_file: str, method: str = "simple") -> List[Document]:
+        """Prepares a single document from a PDF file located at the specified path."""
+        if not os.path.isfile(pdf_file) or not pdf_file.endswith('.pdf'):
+            raise ValueError(f"The file {pdf_file} is not a valid PDF file")
+
+        documents = []
         if method == "simple":
-            documents = SimpleDirectoryReader(input_files=pdf_files).load_data()
+            documents = SimpleDirectoryReader(input_files=[pdf_file]).load_data()
             for doc in documents:
                 doc.text = self.basic_clean(doc.text)
-                # doc.text, found_references = self.extract_reference_section_text(doc.text)
                 doc.text = self.cleaning_func(doc.text)
         elif method == "manual_parsing":
-            for pdf in pdf_files:
-                fn = os.path.basename(pdf).split('.')[0]
-                documents.extend([Document(text=self.cleaning_func(page["text"]), metadata=page["metadata"]) 
-                                  for page in get_page_text(pdf, fn)])
-                if self.debug:
-                    print(f'Text extraction completed from PDF document at path {pdf}')
+            fn = os.path.basename(pdf_file).split('.')[0]
+            documents.extend([Document(text=self.cleaning_func(page["text"]), metadata=page["metadata"]) 
+                            for page in get_page_text(pdf_file, fn)])
+            if self.debug:
+                print(f'Text extraction completed from PDF document at path {pdf_file}')
         else:
             raise ValueError(f"Invalid Method: {method} not supported. Pick 'simple' or 'manual_parsing'")
-
-        print(f'Found {len(documents)} total number of pages from the {len(pdf_files)} pdf files')
-        return documents
+        print(f'Found {len(documents)} total number of pages from the document {pdf_file}')

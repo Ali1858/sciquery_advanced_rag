@@ -29,12 +29,14 @@ class RAGPipelineManager:
                  vector_db="qdrant",
                  document_parsing_method = "manual_parsing",
                  node_parsing_method = "",
-                 retrieval_type = ""):
+                 retrieval_type = "",
+                 name_suffix = ""):
         
         self.DOCUMENT_DIRECTORY = document_directory
         self.DOC_STORE_DIRECTORY = doc_store_directory
         self.model_context_window = 4096
         self.model_max_new_tokens = 786
+        self.name_suffix = name_suffix
 
         # Vector DB, Model and Embeddingprovider
         self.vector_db = vector_db
@@ -52,12 +54,6 @@ class RAGPipelineManager:
         # Set up the service context
         self.service_context = self.setup_service_context()    
 
-
-        self.document_processor = DocumentProcessor()
-        self.vector_store_manager = VectorStoreManager()
-        self.ingestion_manager = IngestionManager(Settings)
-        self.query_pipeline_builder = QueryPipelineBuilder(Settings)
-        
 
     def __get_llms__ (self, model_provider):
         DEBUG = False
@@ -95,28 +91,27 @@ class RAGPipelineManager:
         Settings.llm = self.__get_llms__(self.model_provider)
         Settings.embed_model = self.__get_embedding_model__(self.embedding_provider)
 
-        self.run_injes = self.should_run_pipeline()
-        self.save_vector = self.should_save_vector()
-        self.parse_doc_again = self.should_parse_document()
+        self.document_processor = DocumentProcessor()
+        self.vector_store_manager = VectorStoreManager()
+        self.ingestion_manager = IngestionManager(Settings)
+        self.query_pipeline_builder = QueryPipelineBuilder(Settings, node_parsing_method=self.node_parsing_method)
 
-        if self.parse_doc_again:
+        try:
+            doc_store_name = self.doc_store_name_template.format(name=self.node_parsing_method, suffix=self.name_suffix)
+            self.ingestion_manager.get_doc_from_store(os.path.join(self.DOC_STORE_DIRECTORY,doc_store_name))
+
+            self.run_injes = False
+            self.save_vector = False
+            self.parse_doc_again =  False
+        except Exception as e:
+            print(e)
             self.run_injes = True
             self.save_vector = True
+            self.parse_doc_again =  True
+        print(f'pipeline will parse document {self.parse_doc_again}, save vector {self.save_vector} and run injestion {self.run_injes}.')
 
 
-    def should_run_pipeline(self):
-        return True
-
-
-    def should_save_vector(self):
-        return True
-    
-
-    def should_parse_document(self):
-        return True
-
-
-    def run_ingestion_pipeline(self, run_pipeline, documents, suffix):
+    def run_ingestion_pipeline(self, run_pipeline, documents, add_to_existing=False):
         """
         Runs the ingestion pipeline and stores documents in a document store.
 
@@ -128,6 +123,7 @@ class RAGPipelineManager:
         Returns:
             List[Document]: A list of documents retrieved from the document store.
         """
+        self.doc_store_name = self.doc_store_name_template.format(name=self.node_parsing_method, suffix=self.name_suffix)
         if run_pipeline:
             if self.node_parsing_method == "semantic":
                 nodes = self.ingestion_manager.ingest(documents, node_parser_type="semantic")
@@ -148,13 +144,12 @@ class RAGPipelineManager:
                     chunk_sizes=[2048, 512, 128]
                 )
 
-            self.doc_store_name = self.doc_store_name_template.format(name=self.node_parsing_method, suffix=suffix)
-            self.ingestion_manager.save_simple_doc_store(nodes, os.path.join(self.DOC_STORE_DIRECTORY,self.doc_store_name))
+            self.ingestion_manager.save_simple_doc_store(nodes, os.path.join(self.DOC_STORE_DIRECTORY,self.doc_store_name), add_to_existing)
 
         return self.ingestion_manager.get_doc_from_store(os.path.join(self.DOC_STORE_DIRECTORY,self.doc_store_name))
 
 
-    def save_and_load_vector_store(self, save_vector_store, suffix, nodes=None):
+    def save_and_load_vector_store(self, save_vector_store, add_to_existing=False, nodes=None):
         """
         Saves nodes to a vector store and loads them for retrieval.
 
@@ -166,6 +161,8 @@ class RAGPipelineManager:
         Returns:
             VectorStoreIndex: The loaded vector store index.
         """
+        self.collection_name = self.vectore_db_col_name_template.format(name=self.node_parsing_method, suffix=self.name_suffix)
+
         if save_vector_store and nodes is not None:
             if self.node_parsing_method == "semantic":
                 saving_nodes = nodes
@@ -181,13 +178,28 @@ class RAGPipelineManager:
                 print(f'Total nodes: {len(nodes)}, leaf nodes: {len(leaf_nodes)}, root nodes: {len(root_nodes)}')
                 saving_nodes = leaf_nodes
 
-            self.collection_name = self.vectore_db_col_name_template.format(name=self.node_parsing_method, suffix=suffix)
-            self.vector_store_manager.create_vector_collection(saving_nodes, self.collection_name)
+            self.vector_store_manager.create_vector_collection(saving_nodes, self.collection_name,add_to_existing=add_to_existing)
 
         return self.vector_store_manager.load_vector_collection(self.collection_name, embed_model=Settings.embed_model)
     
 
-    def create_pipeline(self, **kwargs):
+    def update_for_one_doc(self, pdf_file, **kwargs):
+        # Step 1: Prepare documents
+        new_docs = self.document_processor.prepare_single_document( pdf_file, method=self.document_parsing_method)
+        # Step 2: Run ingestion pipeline
+        self.doc_store = self.run_ingestion_pipeline(run_pipeline=True, documents=new_docs, add_to_existing=True)
+        nodes = list(self.doc_store.docs.values())
+        # Step 3: Save and load vector store
+        self.vector_index = self.save_and_load_vector_store(save_vector_store=True, nodes=nodes, add_to_existing=True)
+        # Step 4: Build query pipeline
+        doc_store_path = os.path.join(self.DOC_STORE_DIRECTORY,self.doc_store_name)
+        self.query_pipeline = self.query_pipeline_builder.build_query_pipeline(self.retrieval_type,
+                                                                          base_index=self.vector_index,
+                                                                          doc_store = self.doc_store,
+                                                                          storage_context = self.ingestion_manager.get_storage_contex(doc_store_path),
+                                                                          **kwargs)
+
+    def create_query_pipeline(self, **kwargs):
         """
         Sets up the entire RAG pipeline, from document preparation to query pipeline creation.
 
@@ -205,41 +217,30 @@ class RAGPipelineManager:
         documents = self.document_processor.prepare_documents( self.DOCUMENT_DIRECTORY, parse_doc_again=self.parse_doc_again, method=self.document_parsing_method)
 
         # Step 2: Run ingestion pipeline
-        self.doc_store = self.run_ingestion_pipeline(run_pipeline=self.run_injes, documents=documents, suffix=kwargs.get('suffix',''))
+        self.doc_store = self.run_ingestion_pipeline(run_pipeline=self.run_injes, documents=documents)
         nodes = list(self.doc_store.docs.values())
     
         # Step 3: Save and load vector store
-        self.vector_index = self.save_and_load_vector_store(save_vector_store=self.save_vector, nodes=nodes, suffix=kwargs.get('suffix',''))
+        self.vector_index = self.save_and_load_vector_store(save_vector_store=self.save_vector, nodes=nodes)
 
         # Step 4: Build query pipeline
         doc_store_path = os.path.join(self.DOC_STORE_DIRECTORY,self.doc_store_name)
-        query_pipeline = self.query_pipeline_builder.build_query_pipeline(self.retrieval_type,
+        self.query_pipeline = self.query_pipeline_builder.build_query_pipeline(self.retrieval_type,
                                                                           base_index=self.vector_index,
                                                                           doc_store = self.doc_store,
                                                                           storage_context = self.ingestion_manager.get_storage_contex(doc_store_path),
                                                                           **kwargs)
 
-        return query_pipeline
-    
 
-    # def persist_index(self):
-    #     """
-    #     Persist the current state of the index to storage.
-    #     """
-    #     self.index.storage_context.persist(self.INDEX_DIRECTORY)
-    
-    # def reload_index(self):
-    #     """
-    #     Reload the index from persistent storage.
-    #     """
-    #     self.index = self.load_index()
-    #     self.index = self.vector_store_manager.load_vector_collection(collection_name, embed_model=Settings.embed_model)
-    
-    # def get_index(self):
-    #     """
-    #     Retrieve the current index.
-    #     """
-    #     return self.index
+    def run_query_pipeline(self,query, run_with_intermediates=True):
+
+        if run_with_intermediates:
+            output, steps = self.query_pipeline.run_with_intermediates(topic=query)
+        else:
+            output = self.query_pipeline.run(topic=query)
+            steps = None
+        return output, steps
+
     
     # def delete_index(self, ref_document_id):
     #     """

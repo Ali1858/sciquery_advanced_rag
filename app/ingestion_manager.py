@@ -19,8 +19,15 @@ class IngestionManager:
         return pipeline.run(nodes=documents)
     
 
-    def save_simple_doc_store(self, document_nodes,persist_dir):
-        doc_store = SimpleDocumentStore()
+    def save_simple_doc_store(self, document_nodes, persist_dir, add_to_existing=False):
+
+        if add_to_existing:
+            # Load the existing document store if it exists
+            doc_store = self.get_doc_from_store(persist_dir)
+        else:
+            # Create a new document store
+            doc_store = SimpleDocumentStore()
+
         doc_store.add_documents(document_nodes)
         
         storage_context = StorageContext.from_defaults(docstore=doc_store)

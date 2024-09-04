@@ -4,9 +4,7 @@
 TODO: 
 - [ ] Test Docker script.
 - [ ] Improve PDF parsing.
-- [ ] Add Support for `Recursive Retrieval`
-- [ ] Add Support for `Automated Metadata Extraction`
-- [ ] Add Support for `Enhanced Query Generation`
+- [ ] Add Support for more retrievers such as `Recursive Retrieval`, `Automated Metadata Extraction` and `Enhanced Query Generation`
 
 This repository demonstrates the use of the llama index library for Advance Retrieval-Augmented Generation (RAG), specifically designed for scientific literature Q&A. It showcases a multiple RAG system, building using several chunking and retrieval methods. In addition to that it also uses Qdrant vector database to persist embeddings. This approach help in understanding how different RAG technique works. The system also provides an API for updating, deleting, and quering documents in the index.
 
@@ -56,24 +54,18 @@ we provide variety of Retrieval-Augmented Generation (RAG) techniques to enhance
     Simple RAG involves a straightforward approach to retrieval-augmented generation, where a single retrieval method is used to find relevant documents or text segments, which are then fed into the generation process. While less complex than other techniques, Simple RAG can still effectively enhance the relevance of responses, especially when dealing with well-defined and narrower queries.
 
   [TODO] Implementation pending.
-  5. Contextual Compression [TODO]:
-    Contextual compression reduces the amount of irrelevant information presented to the language model by compressing the retrieved context. It intelligently selects and condenses only the most relevant portions of text, allowing the model to focus on key information, thereby improving both retrieval accuracy and response generation quality.
 
-  6. Adaptive Retrieval [TODO]:
-    Adaptive retrieval dynamically adjusts the retrieval strategy based on the nature of the query and the context. This method enables the system to use different retrieval methods or parameters in real-time, ensuring that the most relevant information is obtained for varying types of questions or requests.
+  5. Contextual Compression:
 
-  7. Sophisticated Controllable Agent [TODO]:
-    This technique involves using advanced control mechanisms to guide the behavior of the retrieval and generation process. The controllable agent can adjust various aspects of retrieval, such as selecting specific indices or tuning relevance scores, to tailor the output to meet specific user requirements or task objectives.
-  
-  8. Recursive Retrieval [TODO]:
-    Recursive retrieval repeatedly refines the search process by using initial retrieval results to form new queries. This iterative approach allows the system to drill down deeper into the available data, progressively refining the search results to find the most relevant and specific information.
-  
-  9. Context Enrichment using QA and Summary [TODO]:
-    Description
-  
-  10. DocumentSummaryIndex Retrieval [TODO]:
-    DocumentSummaryIndex retrieval focuses on using pre-computed summaries of documents to improve retrieval efficiency. By indexing summaries rather than full documents, this method speeds up the retrieval process and ensures that the most relevant and concise information is used to inform the generation process.
+  6. Adaptive Retrieval:
 
+  7. Sophisticated Controllable Agent:
+  
+  8. Recursive Retrieval:
+  
+  9. Context Enrichment using QA and Summary:
+  
+  10. DocumentSummaryIndex Retrieval:
 
 ## REST API Endpoints
 

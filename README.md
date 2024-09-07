@@ -3,12 +3,11 @@
 
 TODO: 
 - [ ] Test Docker script.
-- [ ] Improve PDF parsing.
 - [ ] Add Support for more retrievers such as `Recursive Retrieval`, `Automated Metadata Extraction` and `Enhanced Query Generation`
 
-This repository demonstrates the use of the llama index library for Advance Retrieval-Augmented Generation (RAG), specifically designed for scientific literature Q&A. It showcases a multiple RAG system, building using several chunking and retrieval methods. In addition to that it also uses Qdrant vector database to persist embeddings. This approach help in understanding how different RAG technique works. The system also provides an API for updating, deleting, and quering documents in the index.
+This repository demonstrates the use of the llama index library for Advance Retrieval-Augmented Generation (RAG), specifically designed for scientific literature Q&A. It showcases a multiple RAG system, building using several chunking and retrieval methods. In addition to that it also uses Qdrant vector database to persist embeddings. This approach help in understanding how different RAG technique works. The system also provides an `FastAPI` and `Flask API` for updating, deleting, and quering documents in the index.
 
-## Steps to Implement SciQuery:
+## Work Flow of SciQuery:
 
 To get started, you need to download scientific literatures and save it in the `$PDF_DATA_DIR` folder for initial indexing. The application will creates an index of all documents using several chunking methods and persist their embeddings along with metadata on Qdrant vector DB.
 
@@ -80,7 +79,7 @@ This resource handles operations related to managing the document index, includi
 
   **Example `curl` Command:**
   ```bash
-  curl -X GET "http://127.0.0.1:5000/api/documents"
+  curl -X GET "http://127.0.0.1:8000/api/documents"
   ```
 
   **Sample Response**
@@ -100,7 +99,7 @@ This resource handles operations related to managing the document index, includi
 
   **Example `curl` Command:**
   ```bash
-  curl -X DELETE "http://127.0.0.1:5000/api/documents/martins2016_sparsemax.pdf"
+  curl -X DELETE "http://127.0.0.1:8000/api/documents/martins2016_sparsemax.pdf"
   ```
 
   **Sample Response**
@@ -126,7 +125,7 @@ This resource handles operations related to managing the document index, includi
 
   **Example `curl` Command:**
   ```bash
-  curl -X POST "http://127.0.0.1:5000/api/documents" \
+  curl -X POST "http://127.0.0.1:8000/api/documents" \
   -F "file=@/path/to/martins2016_sparsemax.pdf"
   ```
 
@@ -159,7 +158,7 @@ This resource processes queries to retrieve relevant information from the indexe
 
   **Example `curl` Command:**
   ```bash
-  curl -X POST "http://127.0.0.1:5000/api/query" \
+  curl -X POST "http://127.0.0.1:8000/api/query" \
   -H "Content-Type: application/json" \
   -d '{"query": "Explain what is ULMFIT?"}'
   ```
@@ -208,6 +207,10 @@ This resource processes queries to retrieve relevant information from the indexe
 
 To get started with SciQuery, follow these steps to set up your Python environment, install the required dependencies, and start the Flask application.
 
+0. **Install and run Ollama server**
+
+    Our RAG system uses Ollama server to deploy quantized version of Llama 3 model. Follow this [guide](https://github.com/ollama/ollama) to install and serve you preferred LLM
+
 1. **Create a Python Virtual Environment**
 
    First, create a virtual environment to manage your project's dependencies. Run the following command:
@@ -227,22 +230,22 @@ To get started with SciQuery, follow these steps to set up your Python environme
 
 3. **Install Required Dependencies**
 
-   With the virtual environment activated, install the necessary packages using `pip`. Make sure to also install [MLX](https://pypi.org/project/mlx-llm/) library for Apple Silicon. This library is useful to load quantized model on Apple Silicon.:
+   With the virtual environment activated, install the necessary packages using `pip`. :
 
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Start the Flask Application**
+4. **Start the Application**
 
    Finally, start the Flask application using the following command:
 
    ```bash
-   flask run
+   python main.py
    ```
 
 Make sure to set any necessary environment variables as specified in the `config.py` file before running the application.
 
-Replace `http://localhost:5000` with the actual base URL of your SciQuery API server. For the `POST` and `DELETE` requests, make sure to use the appropriate file paths and UUIDs as needed.
+Replace `http://localhost:8000` with the actual base URL of your SciQuery API server. For the `POST` and `DELETE` requests, make sure to use the appropriate file paths and UUIDs as needed.
 
 Thank you for exploring the SciQuery project. If you have any questions or contributions, please feel free to reach out.

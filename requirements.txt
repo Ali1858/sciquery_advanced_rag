@@ -13,4 +13,7 @@ llama-index-llms-ollama
 llama-index-embeddings-huggingface
 qdrant-client==1.11.0
 llama-index-retrievers-bm25==0.3.0
+fastapi==0.114.0
+python-multipart==0.0.9
+uvicorn==0.30.6
 # mlx-lm==0.16.1

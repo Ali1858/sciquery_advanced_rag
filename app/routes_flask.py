@@ -2,8 +2,11 @@ import os
 from flask import jsonify, request
 from flask_restful import Resource, current_app
 from werkzeug.utils import secure_filename
+from flask import Flask
+from flask_restful import Api
 
-from config import PDF_DATA_DIR
+from app.rag_pipeline_manager import RAGPipelineManager
+from config import RAG_DOCUMENT_PARSING_METHOD, RAG_NODE_PARSING_METHOD, RAG_RETRIEVAL_TYPE, PDF_DATA_DIR
 
 
 class ManageIndex(Resource):
@@ -76,7 +79,3 @@ class QueryIndex(Resource):
             print(e)
             return {'message': f'Error occur while generating a answer for query: {query}.'}, 500
 
-
-def initialize_routes(api):
-    api.add_resource(QueryIndex, '/api/query')
-    api.add_resource(ManageIndex,'/api/documents','/api/documents/<string:file_name>')
